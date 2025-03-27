@@ -172,3 +172,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Grafana Tempo
+tempo-data/
+
+
+image-gen-store/k8s/my-secret-open-api-key.yaml

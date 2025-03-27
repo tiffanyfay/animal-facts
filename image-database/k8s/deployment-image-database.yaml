@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: image-database
+  namespace: facts
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: image-database
+  template:
+    metadata:
+      labels:
+        app: image-database
+    spec:
+      containers:
+        - name: image-database
+          image: $IMAGE_DATABASE_IMAGE
+          ports:
+            - containerPort: 8080
+          env:
+            - name: POSTGRES_HOST
+              value: $POSTGRES_HOST
+            - name: POSTGRES_PORT
+              value: "$POSTGRES_PORT"
+            - name: POSTGRES_DATABASE
+              value: $POSTGRES_DATABASE
+            - name: POSTGRES_USERNAME
+              value: $POSTGRES_USERNAME
+            - name: POSTGRES_PASSWORD
+              value: $POSTGRES_PASSWORD
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_JAVAAGENT_ENABLED
+              value: "true"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://lgtm:4318
+            - name: OTEL_SERVICE_NAME
+              value: image-database
+
+# TODO: switch password etc to secrets
