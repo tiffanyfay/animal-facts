@@ -3,21 +3,34 @@ services:
 
 ### APPLICATION PART
 
-  image-database:
-    image: ${IMAGE_DATABASE_IMAGE}
+  fact-generator:
+    build:
+      context: ./fact-generator
     ports:
-      - "8080:8080"
+      - "5001:5001"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
-      - OTEL_RESOURCE_ATTRIBUTES=service.name=image-database
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=combined-flask
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_JAVAAGENT_ENABLED=true   
-      - POSTGRES_HOST=${POSTGRES_HOST}
-      - POSTGRES_PORT=${POSTGRES_PORT}
-      - POSTGRES_DATABASE=${POSTGRES_DATABASE}
-      - POSTGRES_USERNAME=${POSTGRES_USERNAME}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=aws_lambda
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+  # image-database:
+  #   image: ${IMAGE_DATABASE_IMAGE}
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+  #     - OTEL_RESOURCE_ATTRIBUTES=service.name=image-database
+  #     - OTEL_METRICS_EXPORTER=otlp
+  #     - OTEL_TRACES_EXPORTER=otlp
+  #     - OTEL_JAVAAGENT_ENABLED=true   
+  #     - POSTGRES_HOST=${POSTGRES_HOST}
+  #     - POSTGRES_PORT=${POSTGRES_PORT}
+  #     - POSTGRES_DATABASE=${POSTGRES_DATABASE}
+  #     - POSTGRES_USERNAME=${POSTGRES_USERNAME}
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 
   # image-gen-store:
   #   image: ${IMAGE_GEN_STORE_IMAGE}
