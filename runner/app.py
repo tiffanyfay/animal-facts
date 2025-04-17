@@ -22,11 +22,12 @@ def run():
         # Get a fact about the animal
         fact_response = requests.post("http://fact-generator:5001/generate", json={"animal": animal})
         fact = fact_response.json().get("result")
+        logging.info(f"Generated fact for {animal}: {fact}")
 
         # Get an image of the animal
         image_response = requests.post("http://image-generator:5002/generate", json={"prompt": fact})
         image_url = image_response.json().get("result")
-
+        logging.info(f"Generated image for {animal}: {image_url}")
         return jsonify({"animal": animal, "fact": fact, "image_url": image_url})
 
 if __name__ == '__main__':
