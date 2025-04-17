@@ -43,6 +43,9 @@ services:
       - POSTGRES_DATABASE=${POSTGRES_DATABASE}
       - POSTGRES_USERNAME=${POSTGRES_USERNAME}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    depends_on:
+      - postgres
+      - otelcol
 
   # image-gen-store:
   #   image: ${IMAGE_GEN_STORE_IMAGE}
@@ -76,7 +79,6 @@ services:
       - "4317:4317"   # OTLP gRPC receiver
       - "4318:4318"
     depends_on:
-    # - jaeger
     - tempo
 
   # Prometheus
