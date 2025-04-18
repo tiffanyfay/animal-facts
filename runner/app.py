@@ -10,10 +10,6 @@ tracer = trace.get_tracer("combined.tracer")
 
 app = Flask(__name__)
 
-# Set your OpenAI API key from an environment variable
-# openai.api_key = os.environ.get("OPENAI_API_KEY")
-
-
 @app.route('/generate', methods=['POST'])
 def run():
     # Create a new span for the generate endpoint
@@ -24,11 +20,11 @@ def run():
             return jsonify({"error": "You must provide an animal"}), 400
 
         # Get a fact about the animal
-        fact_response = requests.post("http://localhost:5001/generate", json={"animal": animal})
+        fact_response = requests.post("http://fact-generator:5001/generate", json={"animal": animal})
         fact = fact_response.json().get("result")
 
         # Get an image of the animal
-        image_response = requests.post("http://localhost:5002/generate", json={"prompt": fact})
+        image_response = requests.post("http://image-generator:5002/generate", json={"prompt": fact})
         image_url = image_response.json().get("result")
 
         return jsonify({"animal": animal, "fact": fact, "image_url": image_url})

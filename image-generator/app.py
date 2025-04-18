@@ -10,9 +10,6 @@ tracer = trace.get_tracer("combined.tracer")
 
 app = Flask(__name__)
 
-# Set your OpenAI API key from an environment variable
-# openai.api_key = os.environ.get("OPENAI_API_KEY")
-
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -32,11 +29,17 @@ def generate():
                 client = OpenAI(
                     api_key=os.environ.get("OPENAI_API_KEY"),
                 )
+
+                # Set generation parameters based on environment variables, falling back to defaults if blank
+                model = os.environ.get("DALL_E_MODEL") or "dall-e-2"  # or "dall-e-3" 
+                size = os.environ.get("DALL_E_SIZE") or "1024x1024"    # Available sizes: 256x256, 512x512, or 1024x1024
+                quality = os.environ.get("DALL_E_QUALITY") or "standard"  # or "hd" for DALL-E 3
+                
                 response = client.images.generate(
-                    model="dall-e-3",  # or "dall-e-2" for a cheaper option
+                    model=model,
                     prompt=prompt,
-                    size="1024x1024",  # Available sizes: 256x256, 512x512, or 1024x1024
-                    quality="standard",  # or "hd" for DALL-E 3
+                    size=size,
+                    quality=quality,
                     n=1  # Number of images to generate
                 )
 
@@ -44,7 +47,8 @@ def generate():
                 image_url = response.data[0].url
                 generate_span.set_attribute("image_generator.image_url", image_url)
 
-                # post_image(prompt, image_url)
+                post_image(prompt, image_url)
+
             return jsonify({"result": image_url})
         except Exception as e:
             # Record error in span
@@ -58,10 +62,12 @@ def generate():
             return jsonify({"error": str(e)}), 500
 
 def post_image(prompt, image_url):
+    logging.info(f"Posting image to database for prompt '{prompt}': {image_url}")
     requests.post(
-        "http://localhost:8080/images",
-        json={"prompt": prompt, "url": image_url}
+        "http://image-database:8080/images",
+        data={"prompt": prompt, "url": image_url}
     )
+    logging.info(f"Image posted to database for prompt '{prompt}': {image_url}")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5002)

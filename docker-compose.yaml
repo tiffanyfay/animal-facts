@@ -1,6 +1,17 @@
 services:
 
 ### APPLICATION PART
+  runner:
+    build:
+      context: ./runner
+    ports:
+      - "5003:5003"
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=runner 
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=aws_lambda
 
   fact-generator:
     build:
@@ -8,7 +19,7 @@ services:
     ports:
       - "5001:5001"
     environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
       - OTEL_RESOURCE_ATTRIBUTES=service.name=fact-generator  
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_TRACES_EXPORTER=otlp
@@ -21,7 +32,7 @@ services:
     ports:
       - "5002:5002"
     environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
       - OTEL_RESOURCE_ATTRIBUTES=service.name=image-generator  
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_TRACES_EXPORTER=otlp
@@ -33,7 +44,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4318
       - OTEL_RESOURCE_ATTRIBUTES=service.name=image-database
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_TRACES_EXPORTER=otlp
