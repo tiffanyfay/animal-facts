@@ -10,13 +10,9 @@ tracer = trace.get_tracer("combined.tracer")
 
 app = Flask(__name__)
 
-# Set your OpenAI API key from an environment variable
-# openai.api_key = os.environ.get("OPENAI_API_KEY")
-
-
-@app.route('/generate', methods=['POST'])
+@app.route('/', methods=['POST'])
 def generate():
-    # Create a new span for the generate endpoint
+    # Create a new span
     with tracer.start_as_current_span("fact_generator") as generate_span:
         data = request.get_json()
         animal = data.get("animal")
@@ -39,8 +35,6 @@ def generate():
             
             # Create a span for the OpenAI API call
             with tracer.start_span("openai_request") as openai_span:
-                # Initialize client with explicit empty proxy configuration
-                # client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
                 client = OpenAI(
                     # This is the default and can be omitted
                     api_key=os.environ.get("OPENAI_API_KEY"),
@@ -50,28 +44,10 @@ def generate():
                     instructions="You are an assistant that provides interesting facts about animals.",
                     input=prompt
                 )
-
-                # response = client.chat.completions.create(
-                #     model="gpt-3.5-turbo",
-                #     messages=[
-                #         {
-                #             "role": "system",
-                #             "content": "You are an assistant that provides interesting facts about animals."
-                #         },
-                #         {
-                #             "role": "user",
-                #             "content": prompt
-                #         }
-                #     ],
-                #     max_tokens=150,
-                #     temperature=0.7
-                # )
-                # Get the generated fact
-                # result = response.output_text
-                # openai_span.set_attribute("completion_tokens", len(result.split()))
                 fact = response.output_text
                 generate_span.set_attribute("fact_generator.fact", fact)
             return jsonify({"result": fact})
+        
         except Exception as e:
             # Record error in span
             generate_span.record_exception(e)

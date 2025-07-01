@@ -11,9 +11,9 @@ tracer = trace.get_tracer("combined.tracer")
 app = Flask(__name__)
 
 
-@app.route('/generate', methods=['POST'])
+@app.route('/', methods=['POST'])
 def generate():
-    # Create a new span for the generate endpoint
+    # Create a new span
     with tracer.start_as_current_span("image_generator") as generate_span:
         data = request.get_json()
         prompt = data.get("prompt")
@@ -33,13 +33,12 @@ def generate():
                 # Set generation parameters based on environment variables, falling back to defaults if blank
                 model = os.environ.get("DALL_E_MODEL") or "dall-e-2"  # or "dall-e-3" 
                 size = os.environ.get("DALL_E_SIZE") or "1024x1024"    # Available sizes: 256x256, 512x512, or 1024x1024
-                quality = os.environ.get("DALL_E_QUALITY") or "standard"  # or "hd" for DALL-E 3
+                # quality = os.environ.get("DALL_E_QUALITY") or "standard"  # or "hd" for DALL-E 3
                 
                 response = client.images.generate(
                     model=model,
                     prompt=prompt,
                     size=size,
-                    quality=quality,
                     n=1  # Number of images to generate
                 )
 

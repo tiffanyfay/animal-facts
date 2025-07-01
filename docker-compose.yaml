@@ -40,7 +40,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
 
   image-database:
-    image: ${IMAGE_DATABASE_IMAGE}
+    image: tiffanyfay/image-database:otel-${ARCH}
     ports:
       - "8080:8080"
     environment:
@@ -48,7 +48,7 @@ services:
       - OTEL_RESOURCE_ATTRIBUTES=service.name=image-database
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_JAVAAGENT_ENABLED=true 
+      - OTEL_JAVAAGENT_ENABLED=true
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DATABASE=${POSTGRES_DATABASE}
@@ -76,7 +76,7 @@ services:
       - ./config/otel-collector-config.yml:/etc/otel-collector.yaml
     ports:
       - "4317:4317"   # OTLP gRPC receiver
-      - "4318:4318"
+      - "4318:4318"   # OTLP HTTP receiver
     depends_on:
     - tempo
 
