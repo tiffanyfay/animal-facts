@@ -11,6 +11,7 @@ services:
       - OTEL_RESOURCE_ATTRIBUTES=service.name=runner 
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
       - OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=aws_lambda
 
   fact-generator:

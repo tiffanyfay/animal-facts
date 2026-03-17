@@ -16,52 +16,61 @@ app = Flask(__name__)
 logger = logging.getLogger("runner")
 logging.basicConfig(level=logging.INFO)
 
-
-def check_tcp(host: str, port: int, timeout: float = 1.0) -> Tuple[bool, str]:
-    try:
-        logger.debug(f"Checking connectivity to {host}:{port}")
-        with socket.create_connection((host, port), timeout=timeout):
-            logger.info(f"Connection OK: {host}:{port}")
-            return True, ""
-    except Exception as e:
-        logger.error(f"Connection FAILED: {host}:{port} -> {e}")
-        return False, str(e)
-
+HEALTH_TIMEOUT = 2.0  # seconds for each HTTP health probe
 
 @app.route('/health', methods=['GET'])
 def health_check():
-    logger.info("Health check invoked")
+    """
+    HTTP health endpoint that calls downstream services' /health endpoints.
+    Produces OTEL spans for each call so you can visualize them.
+    """
+    fact_url = os.environ.get("FACT_GENERATOR_HEALTH_URL", "http://fact-generator:5001/health")
+    image_url = os.environ.get("IMAGE_GENERATOR_HEALTH_URL", "http://image-generator:5002/health")
 
-    fact_host, fact_port = "fact-generator", 5001
-    image_host, image_port = "image-generator", 5002
+    overall_ok = True
+    results = {}
 
-    timeout_seconds = 1.0
+    # Helper to probe and record a span
+    def probe(name: str, url: str):
+        nonlocal overall_ok
+        start = time.time()
+        with tracer.start_as_current_span(f"runner.probe.{name}") as span:
+            span.set_attribute("probe.url", url)
+            try:
+                resp = requests.get(url, timeout=HEALTH_TIMEOUT)
+                latency_ms = int((time.time() - start) * 1000)
+                span.set_attribute("probe.status_code", resp.status_code)
+                span.set_attribute("probe.latency_ms", latency_ms)
+                span.set_attribute("probe.ok", resp.ok)
+                if resp.ok:
+                    results[name] = {"ok": True, "status_code": resp.status_code, "latency_ms": latency_ms}
+                    logger.info("Probe OK %s -> %s (%d ms)", name, url, latency_ms)
+                    return True
+                else:
+                    overall_ok = False
+                    body_snippet = (resp.text or "")[:500]
+                    results[name] = {"ok": False, "status_code": resp.status_code, "body": body_snippet}
+                    logger.warning("Probe FAIL %s -> %s status=%s body=%s", name, url, resp.status_code, body_snippet)
+                    return False
+            except requests.RequestException as e:
+                overall_ok = False
+                latency_ms = int((time.time() - start) * 1000)
+                span.set_attribute("probe.error", str(e))
+                span.set_attribute("probe.latency_ms", latency_ms)
+                results[name] = {"ok": False, "error": str(e), "latency_ms": latency_ms}
+                logger.error("Probe EXCEPT %s -> %s error=%s", name, url, str(e))
+                return False
 
-    ok_fact, fact_err = check_tcp(fact_host, fact_port, timeout_seconds)
-    ok_image, image_err = check_tcp(image_host, image_port, timeout_seconds)
+    probe("fact-generator", fact_url)
+    probe("image-generator", image_url)
 
-    status_parts = []
+    # also attach an aggregate span attribute for the health check
+    with tracer.start_as_current_span("runner.health.aggregate") as agg_span:
+        agg_span.set_attribute("health.overall_ok", overall_ok)
+        agg_span.set_attribute("health.results", str(results))
 
-    if ok_fact:
-        status_parts.append("fact-generator:ok")
-    else:
-        status_parts.append(f"fact-generator:error:{fact_err}")
-
-    if ok_image:
-        status_parts.append("image-generator:ok")
-    else:
-        status_parts.append(f"image-generator:error:{image_err}")
-
-    status_msg = ", ".join(status_parts)
-
-    logger.info(f"Health check result: {status_msg}")
-
-    if ok_fact and ok_image:
-        logger.info("Overall health: OK")
-        return status_msg, 200
-    else:
-        logger.warning("Overall health: DEGRADED")
-        return status_msg, 503
+    status_code = 200 if overall_ok else 503
+    return jsonify({"overall_ok": overall_ok, "results": results}), status_code
 
 
 
@@ -169,65 +178,6 @@ def run():
 
         return jsonify({"animal": animal, "fact": fact, "image_url": image_url_res}), 200
 
-# @app.route('/', methods=['POST'])
-# def run():
-#     # Create a new span
-#     with tracer.start_as_current_span("runner") as generate_span:
-#         data = request.get_json()
-#         animal = data.get("animal")
-#         if not animal:
-#             error_message = "You must provide an animal"
-#             try:
-#                 raise ValueError(error_message)
-#             except Exception as e:
-#                 generate_span.set_status(trace.Status(trace.StatusCode.ERROR))
-#                 generate_span.record_exception(e)
-#             return jsonify({"error": error_message}), 400
-        
-#         generate_span.set_attribute("runner.animal", animal)
-
-#         # Check if the animal is a string
-#         if not isinstance(animal, str):
-#             return jsonify({"error": "The animal must be a string"}), 400
-        
-#         animal = str(animal).strip().lower()
-
-#         # Check if the animal contains any digits
-#         if any(char.isdigit() for char in animal):
-#             error_message = "The animal name must not contain numbers."
-#             generate_span.set_status(trace.Status(trace.StatusCode.ERROR))
-#             generate_span.record_exception(Exception(error_message))
-#             return jsonify({"error": error_message}), 400
-
-#         if animal == "snorblefox":
-#             error_message = f"The animal '{animal}' does not exist."
-#             try:
-#                 raise ValueError(error_message)
-#             except Exception as e:
-#                 generate_span.set_status(trace.Status(trace.StatusCode.ERROR))
-#                 generate_span.record_exception(e)
-#             logging.warning(error_message)
-#             return jsonify({"error": error_message}), 400
-        
-#         # Sleep for 5 seconds if the animal is a goat
-#         if animal == "goat":
-#             with tracer.start_span("sleep_timer") as sleep_span:
-#                 sleep_duration = 5
-#                 sleep_span.set_attribute("sleep.duration_seconds", sleep_duration)
-#                 time.sleep(sleep_duration)
-
-#         # Get a fact about the animal
-#         fact_response = requests.post("http://fact-generator:5001/generate", json={"animal": animal})
-#         fact = fact_response.json().get("result")
-#         generate_span.set_attribute("fact_generator.fact", fact)
-#         logging.info(f"Generated fact for {animal}: {fact}")
-
-#         # # Get an image of the animal
-#         # image_response = requests.post("http://image-generator:5002/generate", json={"prompt": fact})
-#         # image_url = image_response.json().get("result")
-#         # generate_span.set_attribute("image_generator.image_url", image_url)
-#         # logging.info(f"Generated image for {animal}: {image_url}")
-#         # return jsonify({"animal": animal, "fact": fact, "image_url": image_url})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5003)

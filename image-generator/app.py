@@ -1,3 +1,5 @@
+import time
+
 from flask import Flask, request, jsonify
 import requests
 import os
@@ -10,6 +12,18 @@ tracer = trace.get_tracer("combined.tracer")
 
 app = Flask(__name__)
 
+@app.route('/health', methods=['GET'])
+def health():
+    """
+    Lightweight HTTP health endpoint that avoids calling OpenAI/DB.
+    """
+    start = time.time()
+    with tracer.start_as_current_span("image_generator.health") as span:
+        span.set_attribute("component", "image-generator")
+        span.set_attribute("health.status", "ok")
+        span.set_attribute("health.latency_ms", int((time.time() - start) * 1000))
+
+    return jsonify({"service": "image-generator", "status": "ok"}), 200
 
 @app.route('/', methods=['POST'])
 def generate():
