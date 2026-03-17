@@ -26,7 +26,8 @@ def health_check():
     """
     fact_url = os.environ.get("FACT_GENERATOR_HEALTH_URL", "http://fact-generator:5001/health")
     image_url = os.environ.get("IMAGE_GENERATOR_HEALTH_URL", "http://image-generator:5002/health")
-
+    backend_url = os.environ.get("IMAGE_BACKEND_HEALTH_URL", "http://image-database:8080/images")
+    
     overall_ok = True
     results = {}
 
@@ -63,6 +64,7 @@ def health_check():
 
     probe("fact-generator", fact_url)
     probe("image-generator", image_url)
+    probe("image-backend", backend_url)
 
     # also attach an aggregate span attribute for the health check
     with tracer.start_as_current_span("runner.health.aggregate") as agg_span:
