@@ -1,0 +1,75 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+        cors:
+          allowed_origins:
+            - http://*
+  # prometheus/collector:
+  #   config:
+  #     scrape_configs:
+  #       - job_name: "opentelemetry-collector"
+  #         scrape_interval: 1s
+  #         static_configs:
+  #           - targets: ["otelcol:8888"]
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+    path: "/ready"
+
+processors:
+  batch:
+
+exporters:
+  # otlphttp/metrics:
+  #   endpoint: http://prometheus:9090/api/v1/otlp
+  #   tls:
+  #     insecure: true
+  otlphttp/metrics:
+    endpoint: "http://prometheus:9090/api/v1/otlp"
+    tls:
+      insecure: true
+  otlphttp/traces:
+    endpoint: http://tempo:4318
+    tls:
+      insecure: true
+  otlphttp/logs:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+  otlp/profiles:
+    endpoint: http://pyroscope:4040
+    tls:
+      insecure: true
+  debug/metrics:
+    verbosity: detailed
+  debug/traces:
+    verbosity: detailed
+  debug/logs:
+    verbosity: detailed
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/traces]
+      #exporters: [otlphttp/traces,debug/traces]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/metrics]
+      #exporters: [otlphttp/metrics,debug/metrics]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/logs]
+      #exporters: [otlphttp/logs,debug/logs]
+    # profiles:
+    #   receivers: [otlp]
+    #   exporters: [otlp/profiles]
