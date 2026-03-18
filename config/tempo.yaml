@@ -41,6 +41,11 @@ compactor:
     block_retention: 1h                # How long to keep blocks. Default is 14 days, this demo system is short-lived.
     compacted_block_retention: 10m     # How long to keep compacted blocks stored elsewhere.
 
+# The Query Frontend is responsible for sharding incoming requests for faster processing in parallel (by the queriers). 
+query_frontend:
+  mcp_server:                          # Enable the MCP server for Tempo.  This allows Tempo to be queried by other services.
+    enabled: true
+
 # Configuration block to determine where to store TSDB blocks.
 storage:
   trace:
@@ -88,7 +93,7 @@ metrics_generator:
     # Configure extra labels to be added to metrics.
     external_labels:
       source: tempo                         # Add a `{source="tempo"}` label.
-      group: 'mythical'                     # Add a `{group="mythical"}` label.
+      group: 'spanimals'                    # Add a `{group="spanimals"}` label.
   # Configures where the store for metrics is located.
   storage:
     # WAL for metrics generation.
