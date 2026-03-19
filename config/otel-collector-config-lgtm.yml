@@ -8,13 +8,6 @@ receivers:
         cors:
           allowed_origins:
             - http://*
-  # prometheus/collector:
-  #   config:
-  #     scrape_configs:
-  #       - job_name: "opentelemetry-collector"
-  #         scrape_interval: 1s
-  #         static_configs:
-  #           - targets: ["otelcol:8888"]
 
 extensions:
   health_check:
@@ -25,10 +18,6 @@ processors:
   batch:
 
 exporters:
-  # otlphttp/metrics:
-  #   endpoint: http://prometheus:9090/api/v1/otlp
-  #   tls:
-  #     insecure: true
   otlphttp/metrics:
     endpoint: "http://prometheus:9090/api/v1/otlp"
     tls:
@@ -69,7 +58,4 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [otlphttp/logs]
-      #exporters: [otlphttp/logs,debug/logs]
-    # profiles:
-    #   receivers: [otlp]
-    #   exporters: [otlp/profiles]
+

@@ -31,6 +31,8 @@ def health_check():
     overall_ok = True
     results = {}
 
+    logger.info("Incoming Healtch check")
+
     # Helper to probe and record a span
     def probe(name: str, url: str):
         nonlocal overall_ok
@@ -182,4 +184,5 @@ def run():
 
 
 if __name__ == '__main__':
+    logger.info("App Starting")
     app.run(host='0.0.0.0', port=5003)
