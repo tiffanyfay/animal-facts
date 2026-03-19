@@ -8,6 +8,8 @@ receivers:
         cors:
           allowed_origins:
             - http://*
+  # profiling:
+  #   samples_per_second: 97
   # prometheus/collector:
   #   config:
   #     scrape_configs:
@@ -41,10 +43,10 @@ exporters:
     endpoint: http://loki:3100/otlp
     tls:
       insecure: true
-  otlp/profiles:
-    endpoint: http://pyroscope:4040
-    tls:
-      insecure: true
+  # otlp/profiles:
+  #   endpoint: http://pyroscope:4040
+  #   tls:
+  #     insecure: true
   debug/metrics:
     verbosity: detailed
   debug/traces:
@@ -69,6 +71,7 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [otlphttp/logs]
+      # exporters: [otlp/profiles]
       #exporters: [otlphttp/logs,debug/logs]
     # profiles:
     #   receivers: [otlp]
