@@ -30,10 +30,10 @@ exporters:
     endpoint: http://loki:3100/otlp
     tls:
       insecure: true
-  otlp/profiles:
-    endpoint: http://pyroscope:4040
-    tls:
-      insecure: true
+  # otlp/profiles:
+  #   endpoint: http://pyroscope:4040
+  #   tls:
+  #     insecure: true
   debug/metrics:
     verbosity: detailed
   debug/traces:
