@@ -2,7 +2,8 @@ services:
 
 ### APPLICATION PART
   runner:
-    build:
+    image: maeddes/spanimals-runner:${VERSION}
+    build:   
       context: ./runner
     ports:
       - "5003:5003"
@@ -15,7 +16,8 @@ services:
       - OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=aws_lambda
 
   fact-generator:
-    build:
+    image: maeddes/spanimals-fact-generator:${VERSION}
+    build:      
       context: ./fact-generator
     ports:
       - "5001:5001"
@@ -28,6 +30,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
 
   image-generator:
+    image: maeddes/spanimals-image-generator:${VERSION}
     build:
       context: ./image-generator
     ports:
@@ -41,7 +44,9 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
 
   image-database:
-    image: tiffanyfay/image-database:otel-${ARCH}
+    image: maeddes/spanimals-image-database:${VERSION}
+    build: 
+      context: ./image-database    
     ports:
       - "8080:8080"
     environment:
