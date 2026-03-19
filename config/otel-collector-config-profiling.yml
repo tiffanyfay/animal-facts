@@ -1,0 +1,15 @@
+receivers:
+  profiling:
+    samples_per_second: 97
+
+exporters:
+  otlp_grpc:
+    endpoint: pyroscope:4040
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    profiles:
+      receivers: [profiling]
+      exporters: [otlp_grpc]
