@@ -12,6 +12,9 @@ tracer = trace.get_tracer("combined.tracer")
 
 app = Flask(__name__)
 
+logger = logging.getLogger("image-generator")
+logging.basicConfig(level=logging.INFO)
+
 @app.route('/health', methods=['GET'])
 def health():
     """
@@ -25,55 +28,94 @@ def health():
 
     return jsonify({"service": "image-generator", "status": "ok"}), 200
 
+STYLE_LOCK = """
+Create one image:
+- simple hand-drawn cartoon / sketch comic
+- slightly sketchy dark outlines
+- soft flat colors
+- minimal shading
+- clean centered composition
+- no scenery, no gradients, no glow
+- no words, no characters,no text, no labels, no extra characters 
+- cute looking
+"""
+
+def build_image_prompt(raw_fact: str) -> str:
+    return f"""{STYLE_LOCK}
+
+Subject:
+{raw_fact}
+
+Output:
+A single clean illustration that looks like part of the same Spanimals family.
+"""
+
 @app.route('/', methods=['POST'])
 def generate():
-    # Create a new span
     with tracer.start_as_current_span("image_generator") as generate_span:
         data = request.get_json()
         prompt = data.get("prompt")
+
         if not prompt:
             return jsonify({"error": "You must provide a prompt"}), 400
 
-        # Set span attributes
-        generate_span.set_attribute("image_generator.prompt", prompt)
+        # 🔹 Log original prompt
+        logging.info("Received prompt", extra={"prompt.original": prompt})
+
+        styled_prompt = build_image_prompt(prompt)
+
+        # 🔹 Log transformed prompt
+        logging.info("Styled prompt created", extra={
+            "prompt.original": prompt,
+            "prompt.styled": styled_prompt
+        })
+
+        # Add to tracing as well (nice for demo!)
+        generate_span.set_attribute("image_generator.prompt.original", prompt)
+        generate_span.set_attribute("image_generator.prompt.styled", styled_prompt)
 
         try:
-            # Create a span for the OpenAI API call
             with tracer.start_span("openai_request") as openai_span:
                 client = OpenAI(
                     api_key=os.environ.get("OPENAI_API_KEY"),
                 )
 
-                # Set generation parameters based on environment variables, falling back to defaults if blank
-                model = os.environ.get("DALL_E_MODEL") or "dall-e-2"  # or "dall-e-3" 
-                size = os.environ.get("DALL_E_SIZE") or "1024x1024"    # Available sizes: 256x256, 512x512, or 1024x1024
-                # quality = os.environ.get("DALL_E_QUALITY") or "standard"  # or "hd" for DALL-E 3
-                
+                model = os.environ.get("DALL_E_MODEL") or "dall-e-3"
+                size = os.environ.get("DALL_E_SIZE") or "1024x1024"
+
                 response = client.images.generate(
                     model=model,
-                    prompt=prompt,
+                    prompt=styled_prompt,  # 👈 IMPORTANT: use styled prompt
                     size=size,
-                    n=1  # Number of images to generate
+                    n=1
                 )
 
-                # Get the generated image URL
                 image_url = response.data[0].url
+
+                # 🔹 Log result
+                logging.info("Image generated", extra={
+                    "prompt.original": prompt,
+                    "image.url": image_url
+                })
+
                 generate_span.set_attribute("image_generator.image_url", image_url)
 
                 post_image(prompt, image_url)
 
             return jsonify({"result": image_url})
+
         except Exception as e:
-            # Record error in span
             generate_span.record_exception(e)
             generate_span.set_status(trace.Status(trace.StatusCode.ERROR))
-            
-            # Print the full error traceback
-            import traceback
-            print("Error traceback:", traceback.format_exc())
-            openai_span.set_attribute("error.message", str(e))
-            return jsonify({"error": str(e)}), 500
 
+            import traceback
+            logging.error("Image generation failed", extra={
+                "prompt.original": prompt,
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            })
+
+            return jsonify({"error": str(e)}), 500
 def post_image(prompt, image_url):
     logging.info(f"Posting image to database for prompt '{prompt}': {image_url}")
     requests.post(
