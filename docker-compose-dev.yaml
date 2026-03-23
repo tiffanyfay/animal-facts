@@ -33,7 +33,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
 
   image-generator:
-    image: maeddes/spanimals-image-generator:${VERSION}
+    #image: maeddes/spanimals-image-generator:${VERSION}
     build:
       context: ./image-generator
     ports:
@@ -43,7 +43,10 @@ services:
       - OTEL_RESOURCE_ATTRIBUTES=service.name=image-generator
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
       - OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=aws_lambda
+      - OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION=true
+      - OTEL_PYTHON_LOG_CORRELATION=true
       - OPENAI_API_KEY=${OPENAI_API_KEY}
 
   image-database:
