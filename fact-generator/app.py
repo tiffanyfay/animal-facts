@@ -7,10 +7,14 @@ import logging
 from openai import OpenAI
 from opentelemetry import trace
 
+
 # Acquire a tracer
 tracer = trace.get_tracer("combined.tracer")
 
 app = Flask(__name__)
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -77,4 +81,5 @@ def generate():
             return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
+    logger.info("Fact GeneratorApp Starting")
     app.run(host='0.0.0.0', port=5001)

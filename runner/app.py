@@ -13,7 +13,7 @@ tracer = trace.get_tracer("combined.tracer")
 
 app = Flask(__name__)
 
-logger = logging.getLogger("runner")
+logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 HEALTH_TIMEOUT = 2.0  # seconds for each HTTP health probe
