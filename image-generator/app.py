@@ -125,4 +125,5 @@ def post_image(prompt, image_url):
     logging.info(f"Image posted to database for prompt '{prompt}': {image_url}")
 
 if __name__ == '__main__':
+    logger.info("Image Generator App Starting")
     app.run(host='0.0.0.0', port=5002)

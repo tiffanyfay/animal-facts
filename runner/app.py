@@ -184,5 +184,5 @@ def run():
 
 
 if __name__ == '__main__':
-    logger.info("App Starting")
+    logger.info("Runner App Starting")
     app.run(host='0.0.0.0', port=5003)
