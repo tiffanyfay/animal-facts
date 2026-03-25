@@ -1,53 +1,68 @@
 services:
-
-### APPLICATION PART
+  ### APPLICATION PART
   runner:
+    image: maeddes/spanimals-runner:${VERSION}
     build:
       context: ./runner
     ports:
       - "5003:5003"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT_GRPC}
-      - OTEL_RESOURCE_ATTRIBUTES=service.name=runner 
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=runner
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=aws_lambda
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION=true
+      - OTEL_PYTHON_LOG_CORRELATION=true
 
   fact-generator:
+    image: maeddes/spanimals-fact-generator:${VERSION}
     build:
       context: ./fact-generator
     ports:
       - "5001:5001"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT_GRPC}
-      - OTEL_RESOURCE_ATTRIBUTES=service.name=fact-generator  
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=fact-generator
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=aws_lambda
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION=true
+      - OTEL_PYTHON_LOG_CORRELATION=true
       - OPENAI_API_KEY=${OPENAI_API_KEY}
 
   image-generator:
+    #image: maeddes/spanimals-image-generator:${VERSION}
     build:
       context: ./image-generator
     ports:
       - "5002:5002"
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT_GRPC}
-      - OTEL_RESOURCE_ATTRIBUTES=service.name=image-generator  
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=image-generator
       - OTEL_METRICS_EXPORTER=otlp
       - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=aws_lambda
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION=true
+      - OTEL_PYTHON_LOG_CORRELATION=true
+      - OTEL_PYTHON_LOG_LEVEL=info
       - OPENAI_API_KEY=${OPENAI_API_KEY}
 
   image-database:
-    image: tiffanyfay/image-database:otel-${ARCH}
+    image: maeddes/spanimals-image-database:${VERSION}
+    build:
+      context: ./image-database
     ports:
       - "8080:8080"
     environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT_HTTP}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
       - OTEL_RESOURCE_ATTRIBUTES=service.name=image-database
-      - OTEL_METRICS_EXPORTER=otlp
-      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=grpc
+      - OTEL_EXPORTER_OTLP_METRICS_PROTOCOL=grpc
+      - OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=grpc
+      - OTEL_METRICS_EXPORTER=otlp,logging-otlp
+      - OTEL_LOGS_EXPORTER=otlp
       - OTEL_JAVAAGENT_ENABLED=true
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
@@ -59,30 +74,54 @@ services:
       - otelcol
 
   postgres:
-    image: 'postgres:latest'
+    image: "postgres:latest"
     environment:
       - POSTGRES_DB=${POSTGRES_DATABASE}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_USER=${POSTGRES_USERNAME}
     ports:
-      - '5432:5432'
+      - "5432:5432"
 
+  ### OTEL PART
 
-# OpenTelemetry Collector
   otelcol:
-    image: otel/opentelemetry-collector:0.86.0
-    command: [ "--config=/etc/otel-collector.yaml" ]
-    volumes:
-      - ./config/otel-collector-config.yml:/etc/otel-collector.yaml
+    image: otel/opentelemetry-collector-contrib
     ports:
-      - "4317:4317"   # OTLP gRPC receiver
-      - "4318:4318"   # OTLP HTTP receiver
-    depends_on:
-    - tempo
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./config/otel-collector-config-lgtm.yml:/etc/otel-collector-config.yml
+    command: ["--config=/etc/otel-collector-config.yml"]
 
-  # Prometheus
+  otel-ebpf-profiler:
+    image: otel/opentelemetry-collector-ebpf-profiler:0.147.0
+    command:
+      - --config=/etc/ebpf-profiler-config.yaml
+      - --feature-gates=service.profilesSupport
+    hostname: ebpf-profiler
+    privileged: true
+    pid: "host"
+    volumes:
+      - ./config/otel-collector-config-profiling.yml:/etc/ebpf-profiler-config.yaml:ro
+      - /sys/kernel/debug:/sys/kernel/debug:ro
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+
+  grafana:
+    image: grafana/grafana:12.3.1
+    volumes:
+      - "./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml"
+    #  - "./grafana:/etc/grafana/provisioning"
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_FEATURE_TOGGLES_ENABLE=flameGraph traceqlSearch correlations traceQLStreaming metricsSummary traceqlEditor traceToMetrics traceToProfiles datatrails
+      - GF_INSTALL_PLUGINS=grafana-lokiexplore-app,grafana-exploretraces-app,grafana-pyroscope-app
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+
   prometheus:
-    image: prom/prometheus:v2.53.4
+    image: quay.io/prometheus/prometheus
     command:
       - --web.console.templates=/etc/prometheus/consoles
       - --web.console.libraries=/etc/prometheus/console_libraries
@@ -90,50 +129,49 @@ services:
       - --config.file=/etc/prometheus/prometheus-config.yaml
       - --storage.tsdb.path=/prometheus
       - --web.enable-lifecycle
+      - --web.enable-otlp-receiver
+      - --web.enable-remote-write-receiver
       - --web.route-prefix=/
       - --enable-feature=exemplar-storage
       - --enable-feature=otlp-write-receiver
-      - --web.enable-remote-write-receiver
-      - --enable-feature=native-histograms
-      # - --web.enable-otlp-receiver
     volumes:
       - ./config/prometheus.yaml:/etc/prometheus/prometheus-config.yaml
     restart: unless-stopped
     ports:
-      - "${PROMETHEUS_SERVICE_PORT}:${PROMETHEUS_SERVICE_PORT}"
-
-# Grafana and Grafana Tempo
-  grafana:
-    image: grafana/grafana:11.0.0
-    volumes:
-      - ./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
-    environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
-      - GF_AUTH_DISABLE_LOGIN_FORM=true
-      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
-    ports:
-      - "3000:3000"
-
-  init:
-    image: &tempoImage grafana/tempo:latest
-    user: root
-    entrypoint:
-      - "chown"
-      - "10001:10001"
-      - "/var/tempo"
-    volumes:
-      - ./tempo-data:/var/tempo
+      - "9090:9090"
 
   tempo:
-    image: *tempoImage
-    command: [ "-config.file=/etc/tempo.yaml" ]
-    volumes:
-      - ./config/tempo.yaml:/etc/tempo.yaml
-      - ./tempo-data:/var/tempo
+    image: grafana/tempo:2.9.0
     ports:
-      - "3200:3200" # tempo
-      - "5555:4317" # otlp grpc
-    depends_on:
-      - init
+      - "3200:3200"
+      - "55680:55680"
+      - "55681:55681"
+      - "14250:14250"
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - "./config/tempo.yaml:/etc/tempo.yaml"
 
+  loki:
+    image: grafana/loki:3.6.3
+    command:
+      ["--pattern-ingester.enabled=true", "-config.file=/etc/loki/loki.yaml"]
+    ports:
+      - "3100:3100"
+    volumes:
+      - "./config/loki.yaml:/etc/loki/loki.yaml"
+
+  pyroscope:
+    image: grafana/pyroscope:1.18.1
+    command:
+      - -self-profiling.disable-push=true
+      - -config.file=/etc/pyroscope.yaml
+    ports:
+      - "4040:4040"
+    volumes:
+      - ./config/pyroscope.yaml:/etc/pyroscope.yaml:ro
+
+  # pyroscope:
+  #   image: grafana/pyroscope:1.16.2
+  #   ports:
+  #     - "4040:4040"
+  #   command: ["server"]
