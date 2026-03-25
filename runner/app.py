@@ -117,10 +117,15 @@ def run():
 
         # optional sleep for goat (keep existing behaviour)
         if animal == "goat":
+            
             with tracer.start_span("sleep_timer") as sleep_span:
+                logger.warning("Do you really want to get a fact for a goat?")
                 sleep_duration = 5
                 sleep_span.set_attribute("sleep.duration_seconds", sleep_duration)
                 time.sleep(sleep_duration)
+                logger.info("Well ok, here it is...")
+
+            
 
         # ---- Fact generator call (robust) ----
         fact_url = os.environ.get("FACT_GENERATOR_URL", "http://fact-generator:5001/")

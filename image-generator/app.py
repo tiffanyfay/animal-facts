@@ -47,7 +47,7 @@ Subject:
 {raw_fact}
 
 Output:
-A single clean illustration that looks like part of the same Spanimals family.
+A single clean illustration that looks like part of the same animal type family.
 """
 
 @app.route('/', methods=['POST'])
