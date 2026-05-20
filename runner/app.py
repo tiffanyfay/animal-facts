@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify
 import requests
 import os
 import logging
+import math
+import random
 import socket
 from openai import OpenAI
 from opentelemetry import trace
@@ -81,6 +83,12 @@ def health_check():
 TIMEOUT = 30  # seconds for most downstream calls
 IMAGE_GENERATOR_TIMEOUT = 120  # GPT image generation can take more than 30 seconds.
 
+def goose_chaos(seconds: float):
+    deadline = time.perf_counter() + seconds
+    while time.perf_counter() < deadline:
+        # CPU-intensive math to ensure it shows up in Pyroscope.
+        math.sin(random.random())
+
 @app.route('/', methods=['POST'])
 def run():
     with tracer.start_as_current_span("runner") as generate_span:
@@ -116,9 +124,8 @@ def run():
             logger.warning(error_message)
             return jsonify({"error": error_message}), 400
 
-        # optional sleep for goat (keep existing behaviour)
+        # sleep for goat (keep existing behaviour)
         if animal == "goat":
-            
             with tracer.start_span("sleep_timer") as sleep_span:
                 logger.warning("Do you really want to get a fact for a goat?")
                 sleep_duration = 5
@@ -126,7 +133,14 @@ def run():
                 time.sleep(sleep_duration)
                 logger.info("Well ok, here it is...")
 
-            
+        # chaos for goose, aka CPU usage
+        if animal == "goose":
+            with tracer.start_span("goose_chaos") as cpu_span:
+                spin_duration = float(os.environ.get("GOOSE_CHAOS_SECONDS", "8"))
+                logger.warning("Goose chaos (spinning CPU) for %.1f seconds", spin_duration)
+                goose_chaos(spin_duration)
+                cpu_span.set_attribute("goose_chaos.duration_seconds", spin_duration)
+                logger.info("The goose decided it was done...")
 
         # ---- Fact generator call (robust) ----
         fact_url = os.environ.get("FACT_GENERATOR_URL", "http://fact-generator:5001/")
@@ -162,7 +176,7 @@ def run():
         try:
             logger.info("Calling image-generator %s with prompt", image_url)
             image_response = requests.post(image_url, json={"prompt": fact}, timeout=IMAGE_GENERATOR_TIMEOUT)
-            logger.info("image-generator status=%s body=%s", image_response.status_code, image_response.text[:1000])
+            logger.info("image-generator status=%s response_bytes=%s", image_response.status_code, len(image_response.text or ""))
         except requests.RequestException as e:
             logger.exception("Failed to call image-generator")
             generate_span.set_status(trace.Status(trace.StatusCode.ERROR))
@@ -170,21 +184,21 @@ def run():
             return jsonify({"error": "Failed to contact image-generator"}), 502
 
         if not image_response.ok:
-            logger.error("image-generator returned non-OK status %s: %s", image_response.status_code, image_response.text)
+            logger.error("image-generator returned non-OK status %s response_bytes=%s", image_response.status_code, len(image_response.text or ""))
             generate_span.set_status(trace.Status(trace.StatusCode.ERROR))
             return jsonify({"error": "image-generator error"}), 502
 
         try:
             image_json = image_response.json()
         except ValueError:
-            logger.error("image-generator returned invalid JSON: %s", image_response.text)
+            logger.error("image-generator returned invalid JSON response_bytes=%s", len(image_response.text or ""))
             generate_span.set_status(trace.Status(trace.StatusCode.ERROR))
             generate_span.record_exception(Exception("Invalid JSON from image-generator"))
             return jsonify({"error": "Invalid response from image-generator"}), 502
 
         image_url_res = image_json.get("result")
         generate_span.set_attribute("image_generator.result_url", image_url_res or "")
-        logger.info("Generated and saved image for %s: %s", animal, image_url_res)
+        logger.info("Generated and saved image for %s image_url_present=%s", animal, bool(image_url_res))
 
         return jsonify({"animal": animal, "fact": fact, "image_url": image_url_res}), 200
 
