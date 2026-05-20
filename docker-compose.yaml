@@ -1,7 +1,7 @@
 services:
   ### APPLICATION PART
   runner:
-    image: maeddes/spanimals-runner:${VERSION}
+    image: tiffanyfay/spanimals-runner:${VERSION}
     build:
       context: ./runner
     ports:
@@ -16,7 +16,7 @@ services:
       - OTEL_PYTHON_LOG_CORRELATION=true
 
   fact-generator:
-    image: maeddes/spanimals-fact-generator:${VERSION}
+    image: tiffanyfay/spanimals-fact-generator:${VERSION}
     build:
       context: ./fact-generator
     ports:
@@ -32,7 +32,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
 
   image-generator:
-    #image: maeddes/spanimals-image-generator:${VERSION}
+    image: tiffanyfay/spanimals-image-generator:${VERSION}
     build:
       context: ./image-generator
     ports:
@@ -47,9 +47,11 @@ services:
       - OTEL_PYTHON_LOG_CORRELATION=true
       - OTEL_PYTHON_LOG_LEVEL=info
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DALL_E_MODEL=gpt-image-1
+      - IMAGE_DATABASE_DISPLAY_URL=http://localhost:8080/images.html
 
   image-database:
-    image: maeddes/spanimals-image-database:${VERSION}
+    image: tiffanyfay/spanimals-image-database:${VERSION}
     build:
       context: ./image-database
     ports:
@@ -94,7 +96,7 @@ services:
     command: ["--config=/etc/otel-collector-config.yml"]
 
   otel-ebpf-profiler:
-    image: otel/opentelemetry-collector-ebpf-profiler:0.147.0
+    image: otel/opentelemetry-collector-ebpf-profiler:0.152.0
     command:
       - --config=/etc/ebpf-profiler-config.yaml
       - --feature-gates=service.profilesSupport
@@ -161,7 +163,7 @@ services:
       - "./config/loki.yaml:/etc/loki/loki.yaml"
 
   pyroscope:
-    image: grafana/pyroscope:1.18.1
+    image: grafana/pyroscope:1.20.3
     command:
       - -self-profiling.disable-push=true
       - -config.file=/etc/pyroscope.yaml

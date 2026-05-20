@@ -78,7 +78,8 @@ def health_check():
 
 
 
-TIMEOUT = 30  # seconds for downstream calls
+TIMEOUT = 30  # seconds for most downstream calls
+IMAGE_GENERATOR_TIMEOUT = 120  # GPT image generation can take more than 30 seconds.
 
 @app.route('/', methods=['POST'])
 def run():
@@ -160,7 +161,7 @@ def run():
         image_url = os.environ.get("IMAGE_GENERATOR_URL", "http://image-generator:5002/")
         try:
             logger.info("Calling image-generator %s with prompt", image_url)
-            image_response = requests.post(image_url, json={"prompt": fact}, timeout=TIMEOUT)
+            image_response = requests.post(image_url, json={"prompt": fact}, timeout=IMAGE_GENERATOR_TIMEOUT)
             logger.info("image-generator status=%s body=%s", image_response.status_code, image_response.text[:1000])
         except requests.RequestException as e:
             logger.exception("Failed to call image-generator")
@@ -182,8 +183,8 @@ def run():
             return jsonify({"error": "Invalid response from image-generator"}), 502
 
         image_url_res = image_json.get("result")
-        generate_span.set_attribute("image_generator.image_url", image_url_res)
-        logger.info("Generated image for %s: %s", animal, image_url_res)
+        generate_span.set_attribute("image_generator.result_url", image_url_res or "")
+        logger.info("Generated and saved image for %s: %s", animal, image_url_res)
 
         return jsonify({"animal": animal, "fact": fact, "image_url": image_url_res}), 200
 

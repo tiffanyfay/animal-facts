@@ -80,7 +80,7 @@ def generate():
                     api_key=os.environ.get("OPENAI_API_KEY"),
                 )
 
-                model = os.environ.get("DALL_E_MODEL") or "dall-e-3"
+                model = os.environ.get("DALL_E_MODEL") or "gpt-image-1"
                 size = os.environ.get("DALL_E_SIZE") or "1024x1024"
 
                 response = client.images.generate(
@@ -90,26 +90,32 @@ def generate():
                     n=1
                 )
 
-                image_url = response.data[0].url
+                image_b64 = response.data[0].b64_json
+                if not image_b64:
+                    raise ValueError("OpenAI image response did not include base64 image data")
+                image_url = f"data:image/png;base64,{image_b64}"
 
                 # 🔹 Log result
                 logging.info("Image generated", extra={
                     "prompt.original": prompt,
-                    "image.url": image_url
+                    "image.response_type": "data_url",
+                    "image.url_length": len(image_url)
                 })
 
-                generate_span.set_attribute("image_generator.image_url", image_url)
+                generate_span.set_attribute("image_generator.image_response_type", "data_url")
+                generate_span.set_attribute("image_generator.image_url_length", len(image_url))
 
                 post_image(prompt, image_url)
+                display_url = os.environ.get("IMAGE_DATABASE_DISPLAY_URL", "http://localhost:8080/images.html")
 
-            return jsonify({"result": image_url})
+            return jsonify({"result": display_url, "image_saved": True})
 
         except Exception as e:
             generate_span.record_exception(e)
             generate_span.set_status(trace.Status(trace.StatusCode.ERROR))
 
             import traceback
-            logging.error("Image generation failed", extra={
+            logging.error("Image generation failed: %s", str(e), extra={
                 "prompt.original": prompt,
                 "error": str(e),
                 "traceback": traceback.format_exc()
@@ -117,12 +123,17 @@ def generate():
 
             return jsonify({"error": str(e)}), 500
 def post_image(prompt, image_url):
-    logging.info(f"Posting image to database for prompt '{prompt}': {image_url}")
-    requests.post(
+    logging.info("Posting image to database", extra={
+        "prompt.original": prompt,
+        "image.url_length": len(image_url),
+    })
+    response = requests.post(
         "http://image-database:8080/images",
-        data={"prompt": prompt, "url": image_url}
+        json={"prompt": prompt, "url": image_url},
+        timeout=10
     )
-    logging.info(f"Image posted to database for prompt '{prompt}': {image_url}")
+    response.raise_for_status()
+    logging.info("Image posted to database", extra={"prompt.original": prompt})
 
 if __name__ == '__main__':
     logger.info("Image Generator App Starting")
