@@ -100,7 +100,7 @@ metrics_generator:
     path: /tmp/tempo/generator/wal
     # Where to remote write metrics to.
     remote_write:
-      - url: http://prometheus:9090/api/v1/push  # URL of locally running Mimir instance.
+      - url: http://prometheus:9090/api/v1/write
         send_exemplars: true # Send exemplars along with their metrics.
   traces_storage:
     path: /tmp/tempo/generator/traces

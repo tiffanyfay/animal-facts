@@ -6,12 +6,26 @@ import math
 import random
 import socket
 from openai import OpenAI
+from opentelemetry import metrics
 from opentelemetry import trace
 from typing import Tuple
 import time
 
 # Acquire a tracer
 tracer = trace.get_tracer("combined.tracer")
+meter = metrics.get_meter("runner.metrics")
+animal_requests_counter = meter.create_counter(
+    "runner_animal_requests_total",
+    description="Total valid animal requests handled by runner",
+)
+goose_requests_counter = meter.create_counter(
+    "runner_goose_requests_total",
+    description="Total goose requests handled by runner",
+)
+goat_requests_counter = meter.create_counter(
+    "runner_goat_requests_total",
+    description="Total goat requests handled by runner",
+)
 
 app = Flask(__name__)
 
@@ -124,8 +138,11 @@ def run():
             logger.warning(error_message)
             return jsonify({"error": error_message}), 400
 
+        animal_requests_counter.add(1)
+
         # sleep for goat (keep existing behaviour)
         if animal == "goat":
+            goat_requests_counter.add(1)
             with tracer.start_span("sleep_timer") as sleep_span:
                 logger.warning("Do you really want to get a fact for a goat?")
                 sleep_duration = 5
@@ -135,6 +152,7 @@ def run():
 
         # chaos for goose, aka CPU usage
         if animal == "goose":
+            goose_requests_counter.add(1)
             with tracer.start_span("goose_chaos") as cpu_span:
                 spin_duration = float(os.environ.get("GOOSE_CHAOS_SECONDS", "8"))
                 logger.warning("Goose chaos (spinning CPU) for %.1f seconds", spin_duration)
@@ -200,7 +218,7 @@ def run():
         generate_span.set_attribute("image_generator.result_url", image_url_res or "")
         logger.info("Generated and saved image for %s image_url_present=%s", animal, bool(image_url_res))
 
-        return jsonify({"animal": animal, "fact": fact, "image_url": image_url_res}), 200
+        return jsonify({"animal": animal, "fact": fact, "image_saved": bool(image_url_res)}), 200
 
 
 if __name__ == '__main__':
