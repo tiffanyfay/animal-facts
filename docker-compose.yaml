@@ -1,7 +1,7 @@
 services:
   ### APPLICATION PART
   runner:
-    image: tiffanyfay/spanimals-runner:${VERSION}
+    image: tiffanyfay/spanimals-runner:100526
     build:
       context: ./runner
     ports:
@@ -97,7 +97,7 @@ services:
     command: ["--config=/etc/otel-collector-config.yml"]
 
   otel-ebpf-profiler:
-    image: otel/opentelemetry-collector-ebpf-profiler:0.152.0
+    image: otel/opentelemetry-collector-ebpf-profiler:0.162.0
     command:
       - --config=/etc/ebpf-profiler-config.yaml
       - --feature-gates=service.profilesSupport
@@ -110,7 +110,7 @@ services:
       - /sys/fs/cgroup:/sys/fs/cgroup:ro
 
   grafana:
-    image: grafana/grafana:12.3.1
+    image: grafana/grafana:13.0.10
     volumes:
       - "./config/grafana-datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml"
     #  - "./grafana:/etc/grafana/provisioning"
@@ -144,7 +144,7 @@ services:
       - "9090:9090"
 
   tempo:
-    image: grafana/tempo:2.9.0
+    image: grafana/tempo:3.1.0
     ports:
       - "3200:3200"
       - "55680:55680"
@@ -155,7 +155,7 @@ services:
       - "./config/tempo.yaml:/etc/tempo.yaml"
 
   loki:
-    image: grafana/loki:3.6.3
+    image: grafana/loki:3.7.8
     command:
       ["--pattern-ingester.enabled=true", "-config.file=/etc/loki/loki.yaml"]
     ports:
@@ -164,7 +164,7 @@ services:
       - "./config/loki.yaml:/etc/loki/loki.yaml"
 
   pyroscope:
-    image: grafana/pyroscope:1.20.3
+    image: grafana/pyroscope:2.3.1
     command:
       - -self-profiling.disable-push=true
       - -config.file=/etc/pyroscope.yaml
@@ -172,9 +172,3 @@ services:
       - "4040:4040"
     volumes:
       - ./config/pyroscope.yaml:/etc/pyroscope.yaml:ro
-
-  # pyroscope:
-  #   image: grafana/pyroscope:1.16.2
-  #   ports:
-  #     - "4040:4040"
-  #   command: ["server"]
