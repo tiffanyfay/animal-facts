@@ -133,9 +133,10 @@ def run():
 
         if animal == "snorblefox":
             error_message = f"The animal '{animal}' does not exist."
-            generate_span.set_status(trace.Status(trace.StatusCode.ERROR))
-            generate_span.record_exception(ValueError(error_message))
-            logger.warning(error_message)
+            exc = ValueError(error_message)
+            generate_span.set_status(trace.Status(trace.StatusCode.ERROR, error_message))
+            generate_span.record_exception(exc)
+            logger.error(error_message)
             return jsonify({"error": error_message}), 400
 
         animal_requests_counter.add(1)
