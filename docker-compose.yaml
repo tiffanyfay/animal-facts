@@ -9,11 +9,7 @@ services:
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT_GRPC}
       - OTEL_RESOURCE_ATTRIBUTES=service.name=runner
-      - OTEL_METRICS_EXPORTER=otlp
-      - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_LOGS_EXPORTER=otlp
-      - OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION=true
-      - OTEL_PYTHON_LOG_CORRELATION=true
+      - OTEL_METRIC_EXPORT_INTERVAL=5000
       - GOOSE_CHAOS_SECONDS=10
 
   fact-generator:
@@ -25,11 +21,6 @@ services:
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT_GRPC}
       - OTEL_RESOURCE_ATTRIBUTES=service.name=fact-generator
-      - OTEL_METRICS_EXPORTER=otlp
-      - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_LOGS_EXPORTER=otlp
-      - OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION=true
-      - OTEL_PYTHON_LOG_CORRELATION=true
       - OPENAI_API_KEY=${OPENAI_API_KEY}
 
   image-generator:
@@ -41,12 +32,6 @@ services:
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT_GRPC}
       - OTEL_RESOURCE_ATTRIBUTES=service.name=image-generator
-      - OTEL_METRICS_EXPORTER=otlp
-      - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_LOGS_EXPORTER=otlp
-      - OTEL_PYTHON_LOG_AUTO_INSTRUMENTATION=true
-      - OTEL_PYTHON_LOG_CORRELATION=true
-      - OTEL_PYTHON_LOG_LEVEL=info
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DALL_E_MODEL=gpt-image-1
       - IMAGE_DATABASE_DISPLAY_URL=http://localhost:8080/images.html
@@ -58,15 +43,10 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT_GRPC}
       - OTEL_RESOURCE_ATTRIBUTES=service.name=image-database
-      - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=${OTEL_EXPORTER_OTLP_ENDPOINT}
-      - OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=grpc
-      - OTEL_EXPORTER_OTLP_METRICS_PROTOCOL=grpc
-      - OTEL_EXPORTER_OTLP_LOGS_PROTOCOL=grpc
-      - OTEL_METRICS_EXPORTER=otlp,logging-otlp
-      - OTEL_LOGS_EXPORTER=otlp
-      - OTEL_JAVAAGENT_ENABLED=true
+      # Java agent defaults to http/protobuf; using gRPC to match Python agent
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - POSTGRES_HOST=${POSTGRES_HOST}
       - POSTGRES_PORT=${POSTGRES_PORT}
       - POSTGRES_DATABASE=${POSTGRES_DATABASE}

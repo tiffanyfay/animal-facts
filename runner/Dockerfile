@@ -15,13 +15,5 @@ RUN opentelemetry-bootstrap --action=install
 # Make port 5001 available to the world outside this container
 EXPOSE 5001
 
-# Define environment variable
-# ENV OTEL_LOGS_EXPORTER="otlp"
-# ENV OTEL_METRICS_EXPORTER="otlp"
-# ENV OTEL_TRACES_EXPORTER="console,otlp"
-# ENV OTEL_EXPORTER_OTLP_ENDPOINT="localhost:4317"
-# ENV OTEL_SERVICE_NAME=combined-flask
-# ENV OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=aws_lambda
-
 # Run app.py when the container launches
 CMD ["opentelemetry-instrument","python","app.py"]
