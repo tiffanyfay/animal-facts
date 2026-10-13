@@ -68,20 +68,19 @@ def generate():
             generate_span.set_attribute("fact_generator.model", model)
             logger.info("Using model: %s", model)
 
-            logger.info("Sending request to OpenAI Responses API")
-            with tracer.start_span("openai_request") as openai_span:
-                client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-                response = client.responses.create(
-                    model=model,
-                    instructions="You are an assistant that provides interesting facts about animals.",
-                    input=prompt
-                )
+            logger.info("Sending request to OpenAI Chat Completions API")
+            client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "You are an assistant that provides interesting facts about animals."},
+                    {"role": "user", "content": prompt},
+                ],
+            )
 
-                fact = response.output_text
-                generate_span.set_attribute("fact_generator.fact", fact)
-
-                logger.info("OpenAI response received; fact length=%d", len(fact) if fact else 0)
-                openai_span.set_attribute("openai.response_length", len(fact) if fact else 0)
+            fact = response.choices[0].message.content
+            generate_span.set_attribute("fact_generator.fact", fact)
+            logger.info("OpenAI response received; fact length=%d", len(fact) if fact else 0)
 
             elapsed_ms = int((time.time() - start) * 1000)
             logger.info("Fact generation completed in %d ms", elapsed_ms)
