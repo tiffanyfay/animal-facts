@@ -75,13 +75,19 @@ def generate():
         generate_span.set_attribute("image_generator.prompt.styled", styled_prompt)
 
         try:
-            with tracer.start_span("openai_request") as openai_span:
-                client = OpenAI(
-                    api_key=os.environ.get("OPENAI_API_KEY"),
-                )
+            client = OpenAI(
+                api_key=os.environ.get("OPENAI_API_KEY"),
+            )
 
-                model = os.environ.get("DALL_E_MODEL") or "gpt-image-1"
-                size = os.environ.get("DALL_E_SIZE") or "1024x1024"
+            model = os.environ.get("DALL_E_MODEL") or "gpt-image-1"
+            size = os.environ.get("DALL_E_SIZE") or "1024x1024"
+
+            with tracer.start_as_current_span(f"generate_image {model}", kind=trace.SpanKind.CLIENT) as openai_span:
+                openai_span.set_attribute("gen_ai.system", "openai")
+                openai_span.set_attribute("gen_ai.operation.name", "generate_image")
+                openai_span.set_attribute("gen_ai.request.model", model)
+                openai_span.set_attribute("server.address", client.base_url.host)
+                openai_span.set_attribute("image_generator.size", size)
 
                 response = client.images.generate(
                     model=model,
@@ -90,23 +96,27 @@ def generate():
                     n=1
                 )
 
-                image_b64 = response.data[0].b64_json
-                if not image_b64:
-                    raise ValueError("OpenAI image response did not include base64 image data")
-                image_url = f"data:image/png;base64,{image_b64}"
+                if response.usage:
+                    openai_span.set_attribute("gen_ai.usage.input_tokens", response.usage.input_tokens)
+                    openai_span.set_attribute("gen_ai.usage.output_tokens", response.usage.output_tokens)
 
-                # 🔹 Log result
-                logging.info("Image generated", extra={
-                    "prompt.original": prompt,
-                    "image.response_type": "data_url",
-                    "image.url_length": len(image_url)
-                })
+            image_b64 = response.data[0].b64_json
+            if not image_b64:
+                raise ValueError("OpenAI image response did not include base64 image data")
+            image_url = f"data:image/png;base64,{image_b64}"
 
-                generate_span.set_attribute("image_generator.image_response_type", "data_url")
-                generate_span.set_attribute("image_generator.image_url_length", len(image_url))
+            # 🔹 Log result
+            logging.info("Image generated", extra={
+                "prompt.original": prompt,
+                "image.response_type": "data_url",
+                "image.url_length": len(image_url)
+            })
 
-                post_image(prompt, image_url)
-                display_url = os.environ.get("IMAGE_DATABASE_DISPLAY_URL", "http://localhost:8080/images.html")
+            generate_span.set_attribute("image_generator.image_response_type", "data_url")
+            generate_span.set_attribute("image_generator.image_url_length", len(image_url))
+
+            post_image(prompt, image_url)
+            display_url = os.environ.get("IMAGE_DATABASE_DISPLAY_URL", "http://localhost:8080/images.html")
 
             return jsonify({"result": display_url, "image_saved": True})
 
